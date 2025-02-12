@@ -7,5 +7,9 @@ type BuyOrderBook struct {
 }
 
 func (b *BuyOrderBook) Less(i, j int) bool {
-	return b.CommonHeap[i].Price > b.CommonHeap[j].Price
+    if i >= len(b.CommonHeap) || j >= len(b.CommonHeap) {
+        return false // Prevent out-of-bounds error
+    }
+    return b.CommonHeap[i].Price > b.CommonHeap[j].Price
 }
+

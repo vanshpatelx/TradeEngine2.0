@@ -78,27 +78,35 @@ func (ob *OrderBook) GetTopSellOrder() *pricelevel.PriceLevel {
 }
 
 func (ob *OrderBook) GetAllBuyOrders() {
+	var totalOrders int = 0
 	if len(ob.BuyOrders.CommonHeap) > 0 {
 		for i := range ob.BuyOrders.CommonHeap {
 			orders := ob.BuyOrders.CommonHeap[i].Orders
 			fmt.Printf("Buy Order: Total Q: %v  Price: %v \n", ob.BuyOrders.CommonHeap[i].Quantity, ob.BuyOrders.CommonHeap[i].Price)
 			fmt.Printf("Numbers of Unique Orders: %v\n", len(orders))
+
+			totalOrders += len(orders)
 			// for _, order := range orders {
 			// 	fmt.Printf("%v %v\n", order.Price, order.Quantity)
 			// }
 		}
 	}
+	fmt.Printf("Total Orders: %v\n", totalOrders)
 }
 
 func (ob *OrderBook) GetAllSellOrders() {
+	var totalOrders int = 0
 	if len(ob.SellOrders.CommonHeap) > 0 {
 		for i := range ob.SellOrders.CommonHeap {
 			orders := ob.SellOrders.CommonHeap[i].Orders
 			fmt.Printf("Sell Order: Total Q: %v  Price: %v \n", ob.SellOrders.CommonHeap[i].Quantity, ob.SellOrders.CommonHeap[i].Price)
 			fmt.Printf("Numbers of Unique Orders: %v\n", len(orders))
+
+			totalOrders += len(orders)
 			// for id, order := range orders {
 			// 	fmt.Printf("%v %v %v\n", id, order.Price, order.Quantity)
 			// }
 		}
 	}
+	fmt.Printf("Total Orders: %v\n", totalOrders)
 }

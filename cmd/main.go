@@ -56,7 +56,7 @@ func main() {
 	basePrice := 100
 	priceFluctuation := 20
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 100000; i++ {
 		buyPrice := basePrice - priceFluctuation + rand.Intn(priceFluctuation)
 		sellPrice := basePrice + rand.Intn(priceFluctuation)
 		buyQuantity := rand.Intn(20) + 1  // Random quantity between 1 and 50

@@ -2,11 +2,10 @@
 
 package customheap
 
-type SellOrderBook struct{ 
-	CommonHeap 
+type SellOrderBook struct {
+	CommonHeap
 }
 
-func (s SellOrderBook) Less(i, j int) bool { 
-	return s.CommonHeap[i].Price < s.CommonHeap[j].Price 
+func (s *SellOrderBook) Less(i, j int) bool {
+	return s.CommonHeap[i].Price < s.CommonHeap[j].Price
 }
-

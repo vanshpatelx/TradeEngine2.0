@@ -31,6 +31,7 @@ func (ob *OrderBook) AddBuyOrder(order *pricelevel.Order) {
 			level.Orders = append(level.Orders, order)
 			level.Quantity += order.Quantity
 			heap.Fix(ob.BuyOrders, level.Index)
+			ob.MatchOrders()
 			return
 		}
 	}
@@ -42,6 +43,7 @@ func (ob *OrderBook) AddBuyOrder(order *pricelevel.Order) {
 	}
 
 	heap.Push(ob.BuyOrders, newLevel)
+	ob.MatchOrders()
 }
 
 func (ob *OrderBook) AddSellOrder(order *pricelevel.Order) {
@@ -49,7 +51,8 @@ func (ob *OrderBook) AddSellOrder(order *pricelevel.Order) {
 		if level.Price == order.Price {
 			level.Orders = append(level.Orders, order)
 			level.Quantity += order.Quantity
-			heap.Fix(ob.BuyOrders, level.Index)
+			heap.Fix(ob.SellOrders, level.Index)
+			ob.MatchOrders()
 			return
 		}
 	}
@@ -61,6 +64,7 @@ func (ob *OrderBook) AddSellOrder(order *pricelevel.Order) {
 	}
 
 	heap.Push(ob.SellOrders, newLevel)
+	ob.MatchOrders()
 }
 
 func (ob *OrderBook) GetTopBuyOrder() *pricelevel.PriceLevel {
@@ -109,4 +113,60 @@ func (ob *OrderBook) GetAllSellOrders() {
 		}
 	}
 	fmt.Printf("Total Orders: %v\n", totalOrders)
+}
+
+
+func (ob *OrderBook) MatchOrders() {
+	for {
+		topBuy := ob.GetTopBuyOrder()
+		topSell := ob.GetTopSellOrder()
+
+		if topBuy == nil || topSell == nil {
+			break
+		}
+
+		if topBuy.Price < topSell.Price {
+			break
+		}
+
+		for len(topBuy.Orders) > 0 && len(topSell.Orders) > 0 {
+			buyOrder := topBuy.Orders[0]
+			sellOrder := topSell.Orders[0]
+
+			matchQty := min(buyOrder.Quantity, sellOrder.Quantity)
+			// fmt.Printf("Matched Order: Price %v, Quantity %v Buyer: %v Seller: %v\n", topSell.Price, matchQty, buyOrder.ID, sellOrder.ID)
+
+			buyOrder.Quantity -= matchQty
+			sellOrder.Quantity -= matchQty
+			topBuy.Quantity -= matchQty
+			topSell.Quantity -= matchQty
+
+			if buyOrder.Quantity == 0 {
+				topBuy.Orders = topBuy.Orders[1:]
+			}
+			if sellOrder.Quantity == 0 {
+				topSell.Orders = topSell.Orders[1:]
+			}
+		}
+
+		if len(topBuy.Orders) == 0 {
+			heap.Pop(ob.BuyOrders)
+		} else {
+			heap.Fix(ob.BuyOrders, topBuy.Index)
+		}
+
+		if len(topSell.Orders) == 0 {
+			heap.Pop(ob.SellOrders)
+		} else {
+			heap.Fix(ob.SellOrders, topSell.Index)
+		}
+	}
+}
+
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
 }

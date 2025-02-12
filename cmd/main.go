@@ -54,22 +54,24 @@ func main() {
 
 	orderID := 1
 	basePrice := 100
-	priceFluctuation := 20
+	priceFluctuation := 2
 
-	for i := 0; i < 100000; i++ {
-		buyPrice := basePrice - priceFluctuation + rand.Intn(priceFluctuation)
+	for i := 0; i < 10000000; i++ {
+		buyPrice := basePrice + rand.Intn(priceFluctuation)
 		sellPrice := basePrice + rand.Intn(priceFluctuation)
-		buyQuantity := rand.Intn(20) + 1  // Random quantity between 1 and 50
-		sellQuantity := rand.Intn(20) + 1 // Random quantity between 1 and 50
+		buyQuantity := rand.Intn(100) + 10  // Random quantity between 1 and 50
+		sellQuantity := rand.Intn(100) + 10 // Random quantity between 1 and 50
 
+		// print("Buy Price: ", buyPrice, "  Qu: ", buyQuantity, " ID ", orderID, "\n")
 		orderBook.AddBuyOrder(&pricelevel.Order{ID: orderID, Price: float64(buyPrice), Quantity: buyQuantity})
 		orderID++
+		// print("Sell Price: ", sellPrice, "  Qu: ", sellQuantity, " ID ", orderID, "\n")
 		orderBook.AddSellOrder(&pricelevel.Order{ID: orderID, Price: float64(sellPrice), Quantity: sellQuantity})
 		orderID++
 	}
 
-	fmt.Println("Top Buy Order:", orderBook.GetTopBuyOrder())
-	fmt.Println("Top Sell Order:", orderBook.GetTopSellOrder())
+	// fmt.Println("Top Buy Order:", orderBook.GetTopBuyOrder())
+	// fmt.Println("Top Sell Order:", orderBook.GetTopSellOrder())
 
 	fmt.Println("All Buy Orders:")
 	orderBook.GetAllBuyOrders()

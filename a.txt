@@ -47,12 +47,12 @@ CAS
 
 
 Features
-- Order DS
-- Order Match
-- RabbitMQ Order Taken
-- Order Price Send
-- Order Book Send
-- Desing for multiple events
+Order DS
+Order Match
+RabbitMQ Order Taken
+Order Price Send
+Order Book Send
+- Design for multiple events / Exchange top class
 - WALocking Recovery and logs
 
 

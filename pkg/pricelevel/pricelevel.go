@@ -1,14 +1,18 @@
 // dummyengine/pkg/pricelevel/pricelevel.go
 package pricelevel
 
+
+import (
+	"math/big"
+)
 type Order struct {
-	ID       int
-	Price    float64
+	ID       *big.Int
+	Price    int
 	Quantity int
 }
 
 type PriceLevel struct {
-	Price    float64
+	Price    int
 	Quantity int
 	Index    int // Heap index
 	Orders   []*Order

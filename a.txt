@@ -113,3 +113,35 @@ EventMessage{
     Order: pricelevel.Order
     ID: bigint
 }
+
+
+EventMessage{
+    Task: "String"
+    ID: EventID : string to bigint
+    OrderID: OrderID : string to bigint
+    OrderPrice: Amount : int
+    OrderUserID: ID, : string to bigint
+    OrderQuantity: Quantity : int
+    Type: type "BUY || SELL"
+}
+
+type EventMessage struct {
+	Task          string `json:"task"`    // "Order" || "CreateEvent" || "Settlement"
+	ID            string `json:"eventId"` // EventID
+	OrderID       string `json:"orderId"` // OrderID
+	OrderPrice    string `json:"price"` // OrderID
+	OrderUserID   string `json:"userId"` // OrderID
+	OrderQuantity string `json:"quantity"` // OrderID
+	Type          string `json:"type"`    // "BUY" || "SELL"
+}
+
+
+task
+empty exchange
+Switch and format rabbitMQ listens
+- Fucntions
+    - AddEvent
+    - Settlement
+    - AddBuyOrder
+    - AddSellOrder
+- Check working code

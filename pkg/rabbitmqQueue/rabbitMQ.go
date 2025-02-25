@@ -3,7 +3,6 @@ package rabbitmqQueue
 
 import (
 	"dummyengine/pkg/exchange"
-	"dummyengine/pkg/pricelevel"
 	"encoding/json"
 	"log"
 	"math/big"
@@ -23,10 +22,13 @@ type RabbitMQQueue struct {
 
 // EventMessage represents the structure received from RabbitMQ
 type EventMessage struct {
-	Task  string            `json:"task"` // "Order" || "CreateEvent" || "Settlement"
-	Order *pricelevel.Order `json:"order,omitempty"`
-	Id    string            `json:"id,omitempty"`
-	Type  string            `json:"type"` // "BUY" || "SELL"
+	Task          string `json:"task"`     // "Order" || "CreateEvent" || "Settlement"
+	ID            string `json:"eventId"`  // EventID
+	OrderID       string `json:"orderId"`  // OrderID
+	OrderPrice    string `json:"price"`    // OrderID
+	OrderUserID   string `json:"userId"`   // OrderID
+	OrderQuantity string `json:"quantity"` // OrderID
+	Type          string `json:"type"`     // "BUY" || "SELL"
 }
 
 // NewRabbitMQConsumer initializes a new consumer
@@ -112,26 +114,42 @@ func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 		msg.Nack(false, false) // Reject message
 		return
 	}
-	// recived as string orderMsg.Id and have to convert to bigint
-	orderMsg.Id
 
+	// Convert string values to big.Int
+	ID := new(big.Int)
+	if err := ID.UnmarshalText([]byte(orderMsg.ID)); err != nil {
+		log.Printf("❌ Failed to convert orderMsg.ID to big.Int: %v Event: %v", err, orderMsg)
+		return
+	}
+
+	orderID := new(big.Int)
+	if err := orderID.UnmarshalText([]byte(orderMsg.OrderID)); err != nil {
+		log.Printf("❌ Failed to convert orderMsg.OrderID to big.Int: %v Event: %v", err, orderMsg)
+		return
+	}
+
+	OrderUserID := new(big.Int)
+	if err := OrderUserID.UnmarshalText([]byte(orderMsg.OrderUserID)); err != nil {
+		log.Printf("❌ Failed to convert orderMsg.OrderUserID to big.Int: %v Event: %v", err, orderMsg)
+		return
+	}
 
 	switch orderMsg.Task {
 	case "CreateEvent":
-		log.Printf("📌 Creating event: %s", orderMsg.Id)
-		c.Exchange.AddEvent(&orderMsg.Id)
+		log.Printf("📌 Creating event: %s", ID.String())
+		c.Exchange.AddEvent(ID)
 
 	case "Settlement":
-		log.Printf("💰 Processing settlement for event: %s", orderMsg.Id)
-		c.Exchange.Settlement(&orderMsg.Id)
+		log.Printf("💰 Processing settlement for event: %s", ID.String())
+		c.Exchange.Settlement(ID)
 
 	case "Order":
-		log.Printf("📦 Processing order for event: %s", orderMsg.Id)
+		log.Printf("📦 Processing order for event: %s", orderID.String())
 		switch orderMsg.Type {
 		case "BUY":
-			c.Exchange.AddBuyOrder(&orderMsg.Order, &orderMsg.Id)
+			c.Exchange.AddBuyOrder(ID, orderID, &orderMsg.OrderPrice, &orderMsg.OrderQuantity, &orderMsg.Type, OrderUserID)
 		case "SELL":
-			c.Exchange.AddSellOrder(&orderMsg.Order, &orderMsg.Id)
+			c.Exchange.AddSellOrder(ID, orderID, &orderMsg.OrderPrice, &orderMsg.OrderQuantity, &orderMsg.Type, OrderUserID)
 		default:
 			log.Printf("⚠️ Unknown order type: %s", orderMsg.Type)
 			msg.Nack(false, false)

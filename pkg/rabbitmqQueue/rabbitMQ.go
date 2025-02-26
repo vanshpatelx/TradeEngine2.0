@@ -4,7 +4,7 @@ package rabbitmqQueue
 import (
 	"dummyengine/pkg/exchange"
 	"encoding/json"
-	"log"
+	"dummyengine/pkg/logger"
 	"math/big"
 	"time"
 
@@ -47,15 +47,15 @@ func (c *RabbitMQQueue) Connect() {
 	// Attempt connection
 	c.Conn, err = amqp.Dial(c.URL)
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
+		logger.Fatal("❌ Failed to connect to RabbitMQ", "error", err)
 	}
 
 	c.Ch, err = c.Conn.Channel()
 	if err != nil {
-		log.Fatalf("❌ Failed to open a channel: %v", err)
+		logger.Fatal("❌ Failed to open a channel", "error", err)
 	}
 
-	log.Printf("✅ Connected to RabbitMQ: %s (Queue: %s)", c.URL, c.Queue)
+	logger.Info("✅ Connected to RabbitMQ", "url", c.URL, "queue", c.Queue)
 
 	// Auto-reconnect on failure
 	c.Conn.NotifyClose(make(chan *amqp.Error))
@@ -68,7 +68,7 @@ func (c *RabbitMQQueue) Connect() {
 // Reconnect handles RabbitMQ reconnection logic
 func (c *RabbitMQQueue) reconnect() {
 	for {
-		log.Printf("🔄 Reconnecting to RabbitMQ...")
+		logger.Warn("🔄 Reconnecting to RabbitMQ...")
 		time.Sleep(5 * time.Second)
 
 		var err error
@@ -76,7 +76,7 @@ func (c *RabbitMQQueue) reconnect() {
 		if err == nil {
 			c.Ch, err = c.Conn.Channel()
 			if err == nil {
-				log.Println("✅ Reconnected to RabbitMQ")
+				logger.Info("✅ Reconnected to RabbitMQ")
 				c.Exchange = exchange.NewExchange(c.Ch, "trade_queue", "price_queue", "orderBook_queue")
 				c.Consume()
 				return
@@ -97,10 +97,10 @@ func (c *RabbitMQQueue) Consume() {
 		nil,
 	)
 	if err != nil {
-		log.Fatalf("❌ Failed to register a consumer: %v", err)
+		logger.Fatal("❌ Failed to register a consumer", "error", err)
 	}
 
-	log.Printf("📥 Consuming messages from queue: %s", c.Queue)
+	logger.Info("📥 Consuming messages", "queue", c.Queue)
 
 	for msg := range msgs {
 		c.processMessage(msg)
@@ -110,7 +110,7 @@ func (c *RabbitMQQueue) Consume() {
 func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 	var orderMsg EventMessage
 	if err := json.Unmarshal(msg.Body, &orderMsg); err != nil {
-		log.Printf("❌ Failed to parse message: %v", err)
+		logger.Error("❌ Failed to parse message", "error", err)
 		msg.Nack(false, false) // Reject message
 		return
 	}
@@ -118,29 +118,29 @@ func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 	// Convert string values to big.Int
 	ID := new(big.Int)
 	if err := ID.UnmarshalText([]byte(orderMsg.ID)); err != nil {
-		log.Printf("❌ Failed to convert orderMsg.ID to big.Int: %v Event: %v", err, orderMsg)
+		logger.Error("❌ Failed to convert orderMsg.ID to big.Int", "error", err, "event", orderMsg)
 		return
 	}
 
 	switch orderMsg.Task {
 	case "CreateEvent":
-		log.Printf("📌 Creating event: %s", ID.String())
+		logger.Info("📌 Creating event", "event_id", ID.String())
 		c.Exchange.AddEvent(ID)
 
 	case "Settlement":
-		log.Printf("💰 Processing settlement for event: %s", ID.String())
+		logger.Info("💰 Processing settlement", "event_id", ID.String())
 		c.Exchange.Settlement(ID)
 
 	case "Order":
 		orderID := new(big.Int)
 		if err := orderID.UnmarshalText([]byte(orderMsg.OrderID)); err != nil {
-			log.Printf("❌ Failed to convert orderMsg.OrderID to big.Int: %v Event: %v", err, orderMsg)
+			logger.Error("❌ Failed to convert orderMsg.OrderID to big.Int", "error", err, "event", orderMsg)
 			return
 		}
 
 		OrderUserID := new(big.Int)
 		if err := OrderUserID.UnmarshalText([]byte(orderMsg.OrderUserID)); err != nil {
-			log.Printf("❌ Failed to convert orderMsg.OrderUserID to big.Int: %v Event: %v", err, orderMsg)
+			logger.Error("❌ Failed to convert orderMsg.OrderUserID to big.Int", "error", err, "event", orderMsg)
 			return
 		}
 
@@ -150,13 +150,13 @@ func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 		case "SELL":
 			c.Exchange.AddSellOrder(ID, orderID, orderMsg.OrderPrice, orderMsg.OrderQuantity, OrderUserID)
 		default:
-			log.Printf("⚠️ Unknown order type: %s", orderMsg.Type)
+			logger.Warn("⚠️ Unknown order type", "order_type", orderMsg.Type)
 			msg.Nack(false, false)
 			return
 		}
 
 	default:
-		log.Printf("⚠️ Unknown task type: %s", orderMsg.Task)
+		logger.Warn("⚠️ Unknown task type", "task_type", orderMsg.Task)
 		msg.Nack(false, false)
 		return
 	}

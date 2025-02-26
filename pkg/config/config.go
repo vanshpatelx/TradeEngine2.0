@@ -1,10 +1,9 @@
 package config
 
 import (
-	"log"
 	"os"
-
 	"github.com/joho/godotenv"
+	"dummyengine/pkg/logger"
 )
 
 type Config struct {
@@ -29,13 +28,13 @@ var AppConfig Config
 
 func LoadConfig() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
+		logger.Warn("No .env file found, using system environment variables")
 	}
 
 	requiredVars := []string{"PORT", "RABBITMQ_USER", "RABBITMQ_PASSWORD", "RABBITMQ_HOST", "RABBITMQ_PORT"}
 	for _, v := range requiredVars {
 		if os.Getenv(v) == "" {
-			log.Fatalf("Environment variable %s is required but not set", v)
+			logger.Fatal("Environment variable is required but not set", "variable", "v")
 		}
 	}
 
@@ -52,7 +51,7 @@ func LoadConfig() {
 			Exchanges: []string{"auth_exchange", "dlx_exchange"},
 		},
 	}
-	log.Println("Configuration loaded successfully")
+	logger.Info("Configuration loaded successfully")
 }
 
 func buildRabbitMQURL() string {

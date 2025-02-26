@@ -4,9 +4,11 @@ import (
 	"dummyengine/pkg/config"
 	"dummyengine/pkg/rabbitmqQueue"
 	"log"
+	"dummyengine/pkg/logger"
 )
 
 func main() {
+	logger.InitLogger()
 	config.LoadConfig()
 	
 	rabbitMQURL := config.AppConfig.RabbitMQ.URL

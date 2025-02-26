@@ -4,15 +4,14 @@ package orderbook
 import (
 	"container/heap"
 	"dummyengine/pkg/customheap"
+	"dummyengine/pkg/logger"
 	"dummyengine/pkg/pricelevel"
 	"dummyengine/pkg/uniqueid"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/streadway/amqp"
 	"math/big"
 	"time"
-
-	"github.com/streadway/amqp"
 )
 
 type OrderBook struct {
@@ -181,7 +180,13 @@ func (ob *OrderBook) MatchOrders() {
 			sellOrder := topSell.Orders[0]
 
 			matchQty := min(buyOrder.Quantity, sellOrder.Quantity)
-			log.Printf("🚀 Matched Order: Price %v, Quantity %v Buyer: %v Seller: %v\n", topSell.Price, matchQty, buyOrder.UserID, sellOrder.UserID)
+
+			logger.Info("🚀 Matched Order",
+				"price", topSell.Price,
+				"quantity", matchQty,
+				"buyer", buyOrder.UserID,
+				"seller", sellOrder.UserID)
+
 			buyerSideTrade := TradeMessage{
 				ID:        uniqueid.GenerateBaseId(),
 				OrderID:   buyOrder.ID,
@@ -232,13 +237,13 @@ func (ob *OrderBook) MatchOrders() {
 
 func (ob *OrderBook) PublishMessage(exchange, routingKey string, message interface{}) {
 	if ob.Ch == nil {
-		log.Printf("❌ RabbitMQ channel not initialized. Cannot publish.")
+		logger.Error("❌ RabbitMQ channel not initialized. Cannot publish.")
 		return
 	}
 
 	body, err := json.Marshal(message)
 	if err != nil {
-		log.Printf("❌ Failed to marshal message: %v", err)
+		logger.Error("❌ Failed to marshal message", "error", err)
 		return
 	}
 
@@ -254,11 +259,17 @@ func (ob *OrderBook) PublishMessage(exchange, routingKey string, message interfa
 		},
 	)
 	if err != nil {
-		log.Printf("❌ Failed to publish message to %s with key '%s': %v", exchange, routingKey, err)
+		logger.Error("❌ Failed to publish message",
+			"exchange", exchange,
+			"routing_key", routingKey,
+			"error", err)
 		return
 	}
 
-	log.Printf("📤 Published event to %s with key '%s': %v", exchange, routingKey, message)
+	logger.Info("📤 Published event",
+		"exchange", exchange,
+		"routing_key", routingKey,
+		"message", message)
 }
 
 func (ob *OrderBook) publishOrderBook() {

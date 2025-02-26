@@ -8,13 +8,15 @@ import (
 	"dummyengine/pkg/uniqueid"
 	"encoding/json"
 	"fmt"
-	"github.com/streadway/amqp"
 	"log"
 	"math/big"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 type OrderBook struct {
+	EventID        *big.Int
 	BuyOrders      *customheap.BuyOrderBook
 	SellOrders     *customheap.SellOrderBook
 	Ch             *amqp.Channel
@@ -26,6 +28,7 @@ type OrderBook struct {
 type TradeMessage struct {
 	ID        *big.Int `json:"id"`
 	OrderID   *big.Int `json:"order_id"`
+	UserID    *big.Int `json:"user_id"`
 	Price     int      `json:"price"`
 	Quantity  int      `json:"quantity"`
 	Timestamp int64    `json:"timestamp"`
@@ -35,13 +38,14 @@ type PriceUpdate struct {
 	Price int `json:"price"`
 }
 
-func NewOrderBook(ch *amqp.Channel, tradeQueue, priceQueue, orderBookQueue string) *OrderBook {
+func NewOrderBook(ch *amqp.Channel, eventID *big.Int, tradeQueue, priceQueue, orderBookQueue string) *OrderBook {
 	buyHeap := &customheap.BuyOrderBook{}
 	sellHeap := &customheap.SellOrderBook{}
 	heap.Init(buyHeap)
 	heap.Init(sellHeap)
 
 	return &OrderBook{
+		EventID:        eventID,
 		BuyOrders:      buyHeap,
 		SellOrders:     sellHeap,
 		Ch:             ch,
@@ -51,7 +55,14 @@ func NewOrderBook(ch *amqp.Channel, tradeQueue, priceQueue, orderBookQueue strin
 	}
 }
 
-func (ob *OrderBook) AddBuyOrder(order *pricelevel.Order) {
+func (ob *OrderBook) AddBuyOrder(orderID *big.Int, orderPrice int, orderQuantity int, orderUserID *big.Int) {
+	order := &pricelevel.Order{
+		ID:       orderID,
+		Price:    orderPrice,
+		Quantity: orderQuantity,
+		UserID:   orderUserID,
+	}
+
 	for _, level := range ob.BuyOrders.CommonHeap {
 		if level.Price == order.Price {
 			level.Orders = append(level.Orders, order)
@@ -76,7 +87,14 @@ func (ob *OrderBook) AddBuyOrder(order *pricelevel.Order) {
 	ob.publishOrderBook()
 }
 
-func (ob *OrderBook) AddSellOrder(order *pricelevel.Order) {
+func (ob *OrderBook) AddSellOrder(orderID *big.Int, orderPrice int, orderQuantity int, orderUserID *big.Int) {
+	order := &pricelevel.Order{
+		ID:       orderID,
+		Price:    orderPrice,
+		Quantity: orderQuantity,
+		UserID:   orderUserID,
+	}
+
 	for _, level := range ob.SellOrders.CommonHeap {
 		if level.Price == order.Price {
 			level.Orders = append(level.Orders, order)
@@ -163,10 +181,11 @@ func (ob *OrderBook) MatchOrders() {
 			sellOrder := topSell.Orders[0]
 
 			matchQty := min(buyOrder.Quantity, sellOrder.Quantity)
-			fmt.Printf("Matched Order: Price %v, Quantity %v Buyer: %v Seller: %v\n", topSell.Price, matchQty, buyOrder.ID, sellOrder.ID)
+			log.Printf("🚀 Matched Order: Price %v, Quantity %v Buyer: %v Seller: %v\n", topSell.Price, matchQty, buyOrder.UserID, sellOrder.UserID)
 			buyerSideTrade := TradeMessage{
 				ID:        uniqueid.GenerateBaseId(),
 				OrderID:   buyOrder.ID,
+				UserID:    buyOrder.UserID,
 				Price:     topSell.Price,
 				Quantity:  matchQty,
 				Timestamp: time.Now().Unix(),
@@ -176,6 +195,7 @@ func (ob *OrderBook) MatchOrders() {
 			sellerSideTrade := TradeMessage{
 				ID:        uniqueid.GenerateBaseId(),
 				OrderID:   sellOrder.ID,
+				UserID:    sellOrder.UserID,
 				Price:     topSell.Price,
 				Quantity:  matchQty,
 				Timestamp: time.Now().Unix(),

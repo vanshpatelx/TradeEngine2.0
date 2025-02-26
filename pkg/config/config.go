@@ -7,81 +7,58 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Load environment variables
-func init() {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
-	}
+type Config struct {
+	Server   ServerConfig
+	RabbitMQ RabbitMQConfig
 }
 
-// Config struct to store environment variables
-var Config = struct {
-	Redis struct {
-		Host     string
-		Port     string
-		Password string
+type ServerConfig struct {
+	Port string
+}
+
+type RabbitMQConfig struct {
+	User      string
+	Password  string
+	Host      string
+	Port      string
+	URL       string
+	Exchanges []string
+}
+
+var AppConfig Config
+
+func LoadConfig() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
 	}
-	JWTSecret struct {
-		Secret string
+
+	requiredVars := []string{"PORT", "RABBITMQ_USER", "RABBITMQ_PASSWORD", "RABBITMQ_HOST", "RABBITMQ_PORT"}
+	for _, v := range requiredVars {
+		if os.Getenv(v) == "" {
+			log.Fatalf("Environment variable %s is required but not set", v)
+		}
 	}
-	DB struct {
-		User     string
-		Host     string
-		Database string
-		Password string
-		Port     string
+
+	AppConfig = Config{
+		Server: ServerConfig{
+			Port: os.Getenv("PORT"),
+		},
+		RabbitMQ: RabbitMQConfig{
+			User:      os.Getenv("RABBITMQ_USER"),
+			Password:  os.Getenv("RABBITMQ_PASSWORD"),
+			Host:      os.Getenv("RABBITMQ_HOST"),
+			Port:      os.Getenv("RABBITMQ_PORT"),
+			URL:       buildRabbitMQURL(),
+			Exchanges: []string{"auth_exchange", "dlx_exchange"},
+		},
 	}
-	Port     string
-	RabbitMQ struct {
-		User      string
-		Password  string
-		Host      string
-		Port      string
-		URL       string
-		Exchanges []string
-	}
-}{
-	Redis: struct {
-		Host     string
-		Port     string
-		Password string
-	}{
-		Host:     os.Getenv("REDIS_HOST"),
-		Port:     os.Getenv("REDIS_PORT"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-	},
-	JWTSecret: struct {
-		Secret string
-	}{
-		Secret: os.Getenv("JWT_SECRET"),
-	},
-	DB: struct {
-		User     string
-		Host     string
-		Database string
-		Password string
-		Port     string
-	}{
-		User:     os.Getenv("DB_USER"),
-		Host:     os.Getenv("DB_HOST"),
-		Database: os.Getenv("DB_NAME"),
-		Password: os.Getenv("DB_PASSWORD"),
-		Port:     os.Getenv("DB_PORT"),
-	},
-	Port: os.Getenv("PORT"),
-	RabbitMQ: struct {
-		User      string
-		Password  string
-		Host      string
-		Port      string
-		URL       string
-		Exchanges []string
-	}{
-		User:      os.Getenv("RABBITMQ_USER"),
-		Password:  os.Getenv("RABBITMQ_PASSWORD"),
-		Host:      os.Getenv("RABBITMQ_HOST"),
-		Port:      os.Getenv("RABBITMQ_PORT"),
-		URL:       "amqp://" + os.Getenv("RABBITMQ_USER") + ":" + os.Getenv("RABBITMQ_PASSWORD") + "@" + os.Getenv("RABBITMQ_HOST") + ":" + os.Getenv("RABBITMQ_PORT"),
-		Exchanges: []string{"auth_exchange", "dlx_exchange"},
-	},
+	log.Println("Configuration loaded successfully")
+}
+
+func buildRabbitMQURL() string {
+	user := os.Getenv("RABBITMQ_USER")
+	password := os.Getenv("RABBITMQ_PASSWORD")
+	host := os.Getenv("RABBITMQ_HOST")
+	port := os.Getenv("RABBITMQ_PORT")
+	return "amqp://" + user + ":" + password + "@" + host + ":" + port
 }

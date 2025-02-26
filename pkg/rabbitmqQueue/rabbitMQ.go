@@ -22,13 +22,13 @@ type RabbitMQQueue struct {
 
 // EventMessage represents the structure received from RabbitMQ
 type EventMessage struct {
-	Task          string `json:"task"`     // "Order" || "CreateEvent" || "Settlement"
-	ID            string `json:"eventId"`  // EventID
-	OrderID       string `json:"orderId"`  // OrderID
-	OrderPrice    string `json:"price"`    // OrderID
-	OrderUserID   string `json:"userId"`   // OrderID
-	OrderQuantity string `json:"quantity"` // OrderID
-	Type          string `json:"type"`     // "BUY" || "SELL"
+	Task          string `json:"task"`               // "Order" || "CreateEvent" || "Settlement"
+	ID            string `json:"eventId"`            // EventID
+	OrderID       string `json:"orderId,omitempty"`  // OrderID
+	OrderPrice    int    `json:"price,omitempty"`    // OrderPrice
+	OrderUserID   string `json:"userId,omitempty"`   // OrderUserID
+	OrderQuantity int    `json:"quantity,omitempty"` // OrderQuantity
+	Type          string `json:"type,omitempty"`     // "BUY" || "SELL"
 }
 
 // NewRabbitMQConsumer initializes a new consumer
@@ -122,18 +122,6 @@ func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 		return
 	}
 
-	orderID := new(big.Int)
-	if err := orderID.UnmarshalText([]byte(orderMsg.OrderID)); err != nil {
-		log.Printf("❌ Failed to convert orderMsg.OrderID to big.Int: %v Event: %v", err, orderMsg)
-		return
-	}
-
-	OrderUserID := new(big.Int)
-	if err := OrderUserID.UnmarshalText([]byte(orderMsg.OrderUserID)); err != nil {
-		log.Printf("❌ Failed to convert orderMsg.OrderUserID to big.Int: %v Event: %v", err, orderMsg)
-		return
-	}
-
 	switch orderMsg.Task {
 	case "CreateEvent":
 		log.Printf("📌 Creating event: %s", ID.String())
@@ -144,12 +132,23 @@ func (c *RabbitMQQueue) processMessage(msg amqp.Delivery) {
 		c.Exchange.Settlement(ID)
 
 	case "Order":
-		log.Printf("📦 Processing order for event: %s", orderID.String())
+		orderID := new(big.Int)
+		if err := orderID.UnmarshalText([]byte(orderMsg.OrderID)); err != nil {
+			log.Printf("❌ Failed to convert orderMsg.OrderID to big.Int: %v Event: %v", err, orderMsg)
+			return
+		}
+
+		OrderUserID := new(big.Int)
+		if err := OrderUserID.UnmarshalText([]byte(orderMsg.OrderUserID)); err != nil {
+			log.Printf("❌ Failed to convert orderMsg.OrderUserID to big.Int: %v Event: %v", err, orderMsg)
+			return
+		}
+
 		switch orderMsg.Type {
 		case "BUY":
-			c.Exchange.AddBuyOrder(ID, orderID, &orderMsg.OrderPrice, &orderMsg.OrderQuantity, &orderMsg.Type, OrderUserID)
+			c.Exchange.AddBuyOrder(ID, orderID, orderMsg.OrderPrice, orderMsg.OrderQuantity, OrderUserID)
 		case "SELL":
-			c.Exchange.AddSellOrder(ID, orderID, &orderMsg.OrderPrice, &orderMsg.OrderQuantity, &orderMsg.Type, OrderUserID)
+			c.Exchange.AddSellOrder(ID, orderID, orderMsg.OrderPrice, orderMsg.OrderQuantity, OrderUserID)
 		default:
 			log.Printf("⚠️ Unknown order type: %s", orderMsg.Type)
 			msg.Nack(false, false)
